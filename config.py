@@ -7,7 +7,7 @@ from datetime import timedelta
 class Config:
     # Flask
     SECRET_KEY = os.environ.get('SECRET_KEY', 'face-attend-secret-key-2024-ultra-secure')
-    DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+    DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
     # Database
     SQLALCHEMY_DATABASE_URI = os.environ.get(
@@ -50,9 +50,15 @@ class Config:
     MAIL_ENABLED = os.environ.get('MAIL_ENABLED', 'True') == 'True'
     MAIL_SMTP_HOST = 'smtp.gmail.com'
     MAIL_SMTP_PORT = 587
-    MAIL_SENDER_EMAIL = os.environ.get('MAIL_SENDER_EMAIL', 'quadsquad3467@gmail.com')
+    MAIL_SENDER_EMAIL = os.environ.get(
+        'MAIL_SENDER_EMAIL', 
+        '' # Put your Gmail here
+    )
     # IMPORTANT: Must be a Gmail App Password (16 chars), NOT your Gmail login password.
-    MAIL_SENDER_PASSWORD = os.environ.get('MAIL_APP_PASSWORD', 'nsib qzyh oydz hnqp')
+    MAIL_SENDER_PASSWORD = os.environ.get(
+        'MAIL_APP_PASSWORD', 
+        '' # Put your Gmail-APP Password here
+    )
     MAIL_SENDER_NAME = 'FaceAttend Pro'
 
     # Paths
