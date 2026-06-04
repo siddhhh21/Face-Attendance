@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+{% block title %}Mail Parents / Guardian — FaceAttend Pro{% endblock %}
+{% block extra_styles %}
+.mp-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.3rem;max-width:1000px}
+@media(max-width:700px){.mp-grid{grid-template-columns:1fr}}
+.tag{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border-radius:30px;font-size:.72rem;font-weight:600;letter-spacing:.5px}
+.tag-sent{background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+.tag-fail{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+.tag-noemail{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.stat-box{text-align:center;padding:1rem .5rem}
+.stat-box .num{font-size:2rem;font-weight:700;line-height:1}
+.stat-box .lbl{font-size:.72rem;color:var(--txt3);margin-top:.3rem;letter-spacing:.5px}
+.setup-banner{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.35);border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.3rem;font-size:.83rem;line-height:1.7}
+.setup-banner code{background:rgba(0,245,255,.08);color:#00f5ff;padding:.1rem .4rem;border-radius:4px;font-size:.8rem}
+.filter-bar{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.filter-bar .form-control{font-size:.83rem}
+.search-wrap{position:relative;flex:1;min-width:160px;max-width:220px}
+.search-wrap .form-control{padding-left:2rem}
+.search-icon{position:absolute;left:.65rem;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:.8rem;pointer-events:none}
+{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+<aside class="sidebar">
+    <div class="sb-section" style="padding:0 1rem .8rem;border-bottom:1px solid var(--brd);margin-bottom:.8rem">
+        <div style="font-size:.65rem;font-weight:700;color:var(--acc);letter-spacing:1.5px">FACEATTEND PRO</div>
+        <div style="font-size:.68rem;color:var(--txt3);margin-top:.15rem">Admin Panel</div>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Navigation</span>
+        <a href="/admin/dashboard"         class="sb-link"><span class="sb-icon">&#128202;</span>Dashboard</a>
+        <a href="/admin/students"          class="sb-link"><span class="sb-icon">&#128101;</span>Students</a>
+        <a href="/admin/students/add"      class="sb-link"><span class="sb-icon">&#10133;</span>Add Student</a>
+        <a href="/admin/attendance"        class="sb-link"><span class="sb-icon">&#128203;</span>Attendance</a>
+        <a href="/admin/attendance/manual" class="sb-link"><span class="sb-icon">&#9997;</span>Manual Mark</a>
+        <a href="/admin/mail-parents"      class="sb-link active"><span class="sb-icon">&#128140;</span>Mail Parents</a>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Export</span>
+        <a href="/admin/attendance/export" class="sb-link"><span class="sb-icon">&#128229;</span>Export CSV</a>
+        <a href="/admin/database/export"   class="sb-link"><span class="sb-icon">&#128190;</span>Full DB Export</a>
+    </div>
+    <div class="sb-section">
+        <a href="/"             class="sb-link"><span class="sb-icon">&#127968;</span>Student Portal</a>
+        <a href="/admin/logout" class="sb-link" style="color:var(--red)"><span class="sb-icon">&#9211;</span>Logout</a>
+    </div>
+</aside>
+
+<main class="admin-main">
+    <div class="ph">
+        <div>
+            <div class="ph-title">&#128140; Mail Parents / Guardian</div>
+            <div class="ph-sub">Send absence notifications to parents or guardians</div>
+        </div>
+    </div>
+
+    <!-- Gmail App Password setup guide -->
+    {% if not mail_configured %}
+    <div class="setup-banner">
+        <strong style="color:#fbbf24">&#9888; Email not configured — Gmail App Password required</strong><br>
+        Gmail blocks your <em>normal login password</em>. You must use a 16-character <strong>App Password</strong>:
+        <ol style="margin:.5rem 0 .3rem 1.2rem;padding:0">
+            <li>Go to <a href="https://myaccount.google.com/security" target="_blank" style="color:var(--acc)">myaccount.google.com/security</a> → enable <strong>2-Step Verification</strong></li>
+            <li>Search <strong>"App passwords"</strong> → App: Mail, Device: Other → click <strong>Generate</strong></li>
+            <li>Copy the 16-char code (e.g. <code>abcd efgh ijkl mnop</code>)</li>
+            <li>Set it in your environment: <code>set MAIL_APP_PASSWORD=abcdefghijklmnop</code> (Windows) or <code>export MAIL_APP_PASSWORD=abcdefghijklmnop</code> (Linux/Mac)</li>
+            <li>Also set <code>MAIL_SENDER_EMAIL=quadsquad3467@gmail.com</code> if not already</li>
+            <li>Restart the Flask server</li>
+        </ol>
+        <span style="color:var(--txt3);font-size:.78rem">&#8505; The App Password is different every time you generate it. Spaces in the 16-char code are optional — strip them out.</span>
+    </div>
+    {% endif %}
+
+    <!-- Stats row -->
+    <div class="flex gap mb-lg" style="flex-wrap:wrap">
+        <div class="card" style="flex:1;min-width:140px">
+            <div class="stat-box">
+                <div class="num" style="color:var(--acc)">{{ stats.total_students }}</div>
+                <div class="lbl">TOTAL STUDENTS</div>
+            </div>
+        </div>
+        <div class="card" style="flex:1;min-width:140px">
+            <div class="stat-box">
+                <div class="num" style="color:#34d399">{{ stats.present_today }}</div>
+                <div class="lbl">PRESENT TODAY</div>
+            </div>
+        </div>
+        <div class="card" style="flex:1;min-width:140px">
+            <div class="stat-box">
+                <div class="num" style="color:#f87171">{{ stats.absent_today }}</div>
+                <div class="lbl">ABSENT TODAY</div>
+            </div>
+        </div>
+        <div class="card" style="flex:1;min-width:140px">
+            <div class="stat-box">
+                <div class="num" style="color:#fbbf24">{{ stats.no_email_count }}</div>
+                <div class="lbl">NO EMAIL ON FILE</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mp-grid">
+
+        <!-- Bulk send panel -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">&#128232; Bulk Absence Notification</span></div>
+            <div class="card-body">
+                <div class="alert al-wa mb" style="font-size:.83rem">
+                    &#9888; This sends an absence alert email to <strong>all students absent today</strong>.
+                    Only students with an email on file will be contacted.
+                </div>
+                <div id="prev-status" style="margin-bottom:1rem;display:none"></div>
+                <button class="btn btn-p" id="bulk-btn" onclick="sendBulk()" style="width:100%">
+                    &#128232; Send Absence Emails to All Absent Students
+                </button>
+                <div id="bulk-result" style="margin-top:1rem;display:none"></div>
+            </div>
+        </div>
+
+        <!-- Individual send panel -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">&#9993; Send to Specific Student</span></div>
+            <div class="card-body">
+                <!-- Search + filter for individual dropdown -->
+                <div class="filter-bar" style="margin-bottom:.7rem">
+                    <div class="search-wrap" style="max-width:180px">
+                        <span class="search-icon">&#128269;</span>
+                        <input type="text" class="form-control" id="ind-search" placeholder="Name or roll…" oninput="filterIndDropdown()">
+                    </div>
+                    <select class="form-control" id="ind-branch" style="flex:1;min-width:120px" onchange="filterIndDropdown()">
+                        <option value="">All Branches</option>
+                        {% set depts = students | map(attribute='department') | unique | list %}
+                        {% for d in depts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Student</label>
+                    <select id="ind-student" class="form-control" onchange="checkIndEmail()">
+                        <option value="">-- Select Student --</option>
+                        {% for s in students %}
+                        <option value="{{ s.roll_number }}"
+                                data-name="{{ s.name|lower }}"
+                                data-roll="{{ s.roll_number|lower }}"
+                                data-dept="{{ s.department }}"
+                                data-email="{{ s.email or '' }}"
+                                data-id="{{ s.id }}">
+                            {{ s.name }} ({{ s.roll_number }}){% if not s.email %} — ⚠ No email{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="ind-email-warn" class="alert al-er mb" style="display:none;font-size:.82rem">
+                    &#10005; No email on file. <a href="#" id="ind-edit-link" style="color:var(--acc)">Edit student</a> to add one.
+                </div>
+                <button class="btn btn-g" id="ind-btn" onclick="sendIndividual()" style="width:100%">
+                    &#9993; Send Notification
+                </button>
+                <div id="ind-result" style="margin-top:1rem;display:none"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Absent students table with search+filter -->
+    <div class="card mt-lg" style="max-width:1000px">
+        <div class="card-header">
+            <span class="card-title">&#128100; Absent Students Today</span>
+            <span class="mono text-dimmer" style="font-size:.75rem" id="absent-count-lbl">{{ absent_students|length }} student(s)</span>
+        </div>
+        <div class="card-body" style="padding-bottom:0">
+
+            <!-- Search & filter bar -->
+            <div class="filter-bar">
+                <div class="search-wrap">
+                    <span class="search-icon">&#128269;</span>
+                    <input type="text" class="form-control" id="tbl-search"
+                           placeholder="Search name or roll…" oninput="filterTable()">
+                </div>
+                <select class="form-control" id="tbl-branch" style="flex:1;min-width:160px;max-width:220px" onchange="filterTable()">
+                    <option value="">All Branches</option>
+                    {% set depts = absent_students | map(attribute='department') | unique | list %}
+                    {% for d in depts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                </select>
+                <span class="mono text-dimmer" style="font-size:.72rem" id="tbl-shown"></span>
+            </div>
+        </div>
+
+        {% if absent_students %}
+        <div class="table-wrap">
+            <table class="data-table" id="absent-table">
+                <thead><tr>
+                    <th>Name</th><th>Roll No</th><th>Branch</th><th>Parent Email</th><th>Status</th><th>Action</th>
+                </tr></thead>
+                <tbody>
+                {% for s in absent_students %}
+                <tr data-name="{{ s.name|lower }}" data-roll="{{ s.roll_number|lower }}" data-dept="{{ s.department }}">
+                    <td><strong>{{ s.name }}</strong></td>
+                    <td class="mono text-dim" style="font-size:.78rem">{{ s.roll_number }}</td>
+                    <td class="text-sm">{{ s.department }}</td>
+                    <td style="font-size:.8rem">
+                        {% if s.email %}
+                            <span style="color:var(--acc)">{{ s.email }}</span>
+                        {% else %}
+                            <span class="text-dimmer">— not set —</span>
+                        {% endif %}
+                    </td>
+                    <td><span id="row-status-{{ s.id }}"></span></td>
+                    <td>
+                        {% if s.email %}
+                        <button class="btn btn-g btn-sm" id="row-btn-{{ s.id }}"
+                                onclick="sendOne('{{ s.roll_number }}', {{ s.id }})">&#9993; Send</button>
+                        {% else %}
+                        <a href="/admin/students/edit/{{ s.id }}" class="btn btn-o btn-sm">&#9998; Add Email</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:2.5rem;color:var(--txt3)">
+            &#10003; All students are present today — no absences!
+        </div>
+        {% endif %}
+    </div>
+
+</main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// ── Load previous send status ─────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async function() {
+    try {
+        const res = await fetch('/api/email/status');
+        const data = await res.json();
+        const el = document.getElementById('prev-status');
+        if (data.emails_sent_today) {
+            el.style.display = 'block';
+            el.innerHTML = '<div class="alert al-ok" style="font-size:.82rem">&#10003; Absence emails already sent today at ' +
+                (data.sent_at || '—') + '. Sent: ' + (data.sent||[]).length +
+                ', Failed: ' + (data.failed||[]).length + '</div>';
+        }
+    } catch(e) {}
+    updateTableCount();
+});
+
+// ── Filter: absent table ──────────────────────────────────────────────────────
+function filterTable() {
+    var q = document.getElementById('tbl-search').value.toLowerCase().trim();
+    var br = document.getElementById('tbl-branch').value;
+    var rows = document.querySelectorAll('#absent-table tbody tr[data-name]');
+    var vis = 0;
+    rows.forEach(function(r) {
+        var mq = !q || r.dataset.name.includes(q) || r.dataset.roll.includes(q);
+        var mb = !br || r.dataset.dept === br;
+        r.style.display = (mq && mb) ? '' : 'none';
+        if (mq && mb) vis++;
+    });
+    document.getElementById('tbl-shown').textContent = vis + ' shown';
+}
+
+function updateTableCount() {
+    var rows = document.querySelectorAll('#absent-table tbody tr[data-name]');
+    document.getElementById('tbl-shown').textContent = rows.length + ' shown';
+}
+
+// ── Filter: individual dropdown ───────────────────────────────────────────────
+function filterIndDropdown() {
+    var q = document.getElementById('ind-search').value.toLowerCase().trim();
+    var br = document.getElementById('ind-branch').value;
+    var sel = document.getElementById('ind-student');
+    var opts = sel.querySelectorAll('option[value]');
+    var first = true;
+    opts.forEach(function(o) {
+        if (!o.value) return; // skip placeholder
+        var mq = !q || o.dataset.name.includes(q) || o.dataset.roll.includes(q);
+        var mb = !br || o.dataset.dept === br;
+        o.style.display = (mq && mb) ? '' : 'none';
+        if (mq && mb && first) { sel.value = o.value; first = false; checkIndEmail(); }
+    });
+    if (first) { sel.value = ''; checkIndEmail(); }
+}
+
+// ── Email warning for individual dropdown ────────────────────────────────────
+function checkIndEmail() {
+    var sel = document.getElementById('ind-student');
+    var opt = sel.options[sel.selectedIndex];
+    var email = opt ? opt.dataset.email : '';
+    var id    = opt ? opt.dataset.id : '';
+    var warn = document.getElementById('ind-email-warn');
+    if (sel.value && !email) {
+        warn.style.display = 'block';
+        document.getElementById('ind-edit-link').href = '/admin/students/edit/' + id;
+    } else {
+        warn.style.display = 'none';
+    }
+}
+
+// ── Bulk send ─────────────────────────────────────────────────────────────────
+async function sendBulk() {
+    var btn = document.getElementById('bulk-btn');
+    var res_div = document.getElementById('bulk-result');
+    btn.disabled = true; btn.textContent = '⏳ Sending…';
+    res_div.style.display = 'none';
+    try {
+        var res = await fetch('/api/email/send-absences', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+        var data = await res.json();
+        res_div.style.display = 'block';
+        if (data.success) {
+            var sentList = (data.sent||[]).length ? data.sent.join(', ') : '—';
+            res_div.innerHTML = '<div class="alert al-ok" style="font-size:.83rem">&#10003; ' + data.message +
+                '<br><span style="font-size:.78rem;color:var(--txt3)">Sent to rolls: ' + sentList + '</span></div>';
+            setTimeout(() => location.reload(), 2200);
+        } else {
+            res_div.innerHTML = '<div class="alert al-er" style="font-size:.83rem">&#10005; ' + (data.message||'Error') + '</div>';
+        }
+    } catch(e) {
+        res_div.style.display = 'block';
+        res_div.innerHTML = '<div class="alert al-er" style="font-size:.83rem">&#10005; Network error</div>';
+    }
+    btn.disabled = false; btn.innerHTML = '&#128232; Send Absence Emails to All Absent Students';
+}
+
+// ── Individual send ──────────────────────────────────────────────────────────
+async function sendIndividual() {
+    var roll = document.getElementById('ind-student').value;
+    if (!roll) { showToast('Please select a student', 'error'); return; }
+    var btn = document.getElementById('ind-btn');
+    var res_div = document.getElementById('ind-result');
+    btn.disabled = true; btn.textContent = '⏳ Sending…';
+    res_div.style.display = 'none';
+    try {
+        var res = await fetch('/api/email/send-manual', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({roll_number: roll})
+        });
+        var data = await res.json();
+        res_div.style.display = 'block';
+        if (data.success) {
+            res_div.innerHTML = '<div class="alert al-ok" style="font-size:.83rem">&#10003; ' + data.message + '</div>';
+        } else {
+            res_div.innerHTML = '<div class="alert al-er" style="font-size:.83rem">&#10005; ' + (data.message||'Error') + '</div>';
+        }
+    } catch(e) {
+        res_div.style.display = 'block';
+        res_div.innerHTML = '<div class="alert al-er" style="font-size:.83rem">&#10005; Network error</div>';
+    }
+    btn.disabled = false; btn.innerHTML = '&#9993; Send Notification';
+}
+
+// ── Per-row send ──────────────────────────────────────────────────────────────
+async function sendOne(roll, id) {
+    var btn = document.getElementById('row-btn-' + id);
+    var statusEl = document.getElementById('row-status-' + id);
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+        var res = await fetch('/api/email/send-manual', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({roll_number: roll})
+        });
+        var data = await res.json();
+        if (data.success) {
+            btn.textContent = '✓ Sent'; btn.classList.replace('btn-g','btn-p');
+            statusEl.innerHTML = '<span class="tag tag-sent">&#10003; Sent</span>';
+            showToast(data.message, 'success');
+        } else {
+            btn.disabled = false; btn.innerHTML = '&#9993; Send';
+            statusEl.innerHTML = '<span class="tag tag-fail">&#10005; Failed</span>';
+            showToast(data.message || 'Failed', 'error');
+        }
+    } catch(e) {
+        btn.disabled = false; btn.innerHTML = '&#9993; Send';
+        showToast('Network error', 'error');
+    }
+}
+</script>
+{% endblock %}

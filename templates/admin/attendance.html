@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}Attendance — FaceAttend Pro{% endblock %}
+{% block extra_styles %}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.del-btn{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:var(--red);border-radius:5px;padding:3px 9px;font-size:.68rem;cursor:pointer;transition:all .15s;white-space:nowrap}
+.del-btn:hover{background:rgba(248,113,113,.25);border-color:var(--red)}
+{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+<aside class="sidebar">
+    <div class="sb-section" style="padding:0 1rem .8rem;border-bottom:1px solid var(--brd);margin-bottom:.8rem">
+        <div style="font-size:.65rem;font-weight:700;color:var(--acc);letter-spacing:1.5px">FACEATTEND PRO</div>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Navigation</span>
+        <a href="/admin/dashboard"         class="sb-link"><span class="sb-icon">&#128202;</span>Dashboard</a>
+        <a href="/admin/students"          class="sb-link"><span class="sb-icon">&#128101;</span>Students</a>
+        <a href="/admin/students/add"      class="sb-link"><span class="sb-icon">&#10133;</span>Add Student</a>
+        <a href="/admin/attendance"        class="sb-link active"><span class="sb-icon">&#128203;</span>Attendance</a>
+        <a href="/admin/attendance/manual" class="sb-link"><span class="sb-icon">&#9997;</span>Manual Mark</a>
+        <a href="/admin/mail-parents" class="sb-link"><span class="sb-icon">&#128140;</span>Mail Parents</a>
+    </div>
+    <div class="sb-section">
+        <a href="/admin/attendance/export" class="sb-link"><span class="sb-icon">&#128229;</span>Export CSV</a>
+        <a href="/admin/database/export"   class="sb-link"><span class="sb-icon">&#128190;</span>Full DB Export</a>
+    </div>
+    <div class="sb-section">
+        <a href="/"             class="sb-link"><span class="sb-icon">&#127968;</span>Student Portal</a>
+        <a href="/admin/logout" class="sb-link" style="color:var(--red)"><span class="sb-icon">&#9211;</span>Logout</a>
+    </div>
+</aside>
+
+<main class="admin-main">
+    <div class="ph">
+        <div>
+            <div class="ph-title">Attendance Records</div>
+            <div class="ph-sub">Filter, view, delete and export attendance</div>
+        </div>
+        <button class="btn btn-s btn-sm" onclick="exportCSV()">&#128229; Export CSV</button>
+    </div>
+
+    <!-- Summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.2rem">
+        <div class="stat">
+            <div class="stat-top"><div class="stat-icon si-b">&#128202;</div></div>
+            <div class="stat-num" id="sum-total">—</div><div class="stat-lbl">Total Records</div>
+        </div>
+        <div class="stat">
+            <div class="stat-top"><div class="stat-icon si-g">&#9654;</div></div>
+            <div class="stat-num" id="sum-auto" style="color:var(--grn)">—</div><div class="stat-lbl">Auto Marked</div>
+        </div>
+        <div class="stat">
+            <div class="stat-top"><div class="stat-icon si-y">&#9997;</div></div>
+            <div class="stat-num" id="sum-man" style="color:var(--yel)">—</div><div class="stat-lbl">Manual Marked</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb">
+        <div class="card-header"><span class="card-title">&#128269; Filters</span></div>
+        <div class="card-body">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr) auto;gap:.8rem;align-items:end">
+                <div>
+                    <label class="form-label">Date From</label>
+                    <input type="date" id="f-from" class="form-control">
+                </div>
+                <div>
+                    <label class="form-label">Date To</label>
+                    <input type="date" id="f-to" class="form-control">
+                </div>
+                <div>
+                    <label class="form-label">Department</label>
+                    <select id="f-dept" class="form-control">
+                        <option value="">All</option>
+                        {% for dept in departments %}<option value="{{ dept }}">{{ dept }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Roll Number</label>
+                    <input type="text" id="f-roll" class="form-control" placeholder="Search...">
+                </div>
+                <div><button class="btn btn-p" onclick="loadData()">Apply</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">&#128203; Records</span>
+            <span class="card-sub" id="rec-count">—</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr>
+                    <th>#</th><th>Name</th><th>Roll No</th><th>Department</th>
+                    <th>Date</th><th>Time</th><th>Confidence</th><th>Status</th>
+                    <th>Marked By</th><th>Reason</th><th>Action</th>
+                </tr></thead>
+                <tbody id="att-tbody">
+                    <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--txt3)">Click Apply to load data</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div id="del-modal" class="modal-backdrop" style="display:none">
+    <div class="card" style="max-width:420px;width:90%">
+        <div class="card-header">
+            <span class="card-title" style="color:var(--red)">&#9888; Remove Attendance Record</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size:.88rem;color:var(--txt2);margin-bottom:1rem">Are you sure you want to remove this attendance entry?</p>
+            <div style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:.8rem 1rem;margin-bottom:1.2rem">
+                <div style="font-size:.75rem;color:var(--txt3);letter-spacing:1px;margin-bottom:.3rem">RECORD TO DELETE</div>
+                <div id="del-info" style="font-size:.9rem;color:var(--txt);font-weight:600"></div>
+            </div>
+            <div class="flex gap-sm">
+                <button class="btn btn-d" onclick="doDelete()">&#128465; Yes, Remove</button>
+                <button class="btn btn-o" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+var today=new Date().toISOString().split('T')[0];
+document.getElementById('f-from').value=today;
+document.getElementById('f-to').value=today;
+
+var deleteId=null;
+
+async function loadData(){
+    var p=new URLSearchParams();
+    var from=document.getElementById('f-from').value;
+    var to=document.getElementById('f-to').value;
+    var dept=document.getElementById('f-dept').value;
+    var roll=document.getElementById('f-roll').value;
+    if(from)p.set('date_from',from); if(to)p.set('date_to',to);
+    if(dept)p.set('department',dept); if(roll)p.set('roll_number',roll);
+    var tbody=document.getElementById('att-tbody');
+    tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--txt3)">Loading...</td></tr>';
+    try{
+        var res=await fetch('/api/attendance?'+p.toString());
+        var data=await res.json();
+        var recs=data.records;
+        document.getElementById('rec-count').textContent=recs.length+' records';
+        document.getElementById('sum-total').textContent=recs.length;
+        document.getElementById('sum-auto').textContent=recs.filter(function(r){return r.status==='Present'}).length;
+        document.getElementById('sum-man').textContent=recs.filter(function(r){return r.status==='Manual'}).length;
+        if(!recs.length){
+            tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--txt3)">No records found</td></tr>';return;
+        }
+        tbody.innerHTML=recs.map(function(r,i){
+            var badge=r.status==='Present'?'bd-g':r.status==='Manual'?'bd-y':'bd-b';
+            var delLabel=r.student_name+' · '+r.date+' · '+r.time;
+            return '<tr id="row-'+r.id+'">'+
+                '<td class="mono text-dimmer text-xs">'+(i+1)+'</td>'+
+                '<td><strong>'+r.student_name+'</strong></td>'+
+                '<td class="mono text-xs text-dim">'+r.roll_number+'</td>'+
+                '<td class="text-sm">'+r.department+'</td>'+
+                '<td class="mono text-xs">'+r.date+'</td>'+
+                '<td class="mono text-xs text-acc">'+r.time+'</td>'+
+                '<td class="text-sm">'+(r.confidence_score!=null?r.confidence_score+'%':'&#8212;')+'</td>'+
+                '<td><span class="badge '+badge+'">'+r.status+'</span></td>'+
+                '<td class="text-xs text-dim">'+r.marked_by+'</td>'+
+                '<td class="text-xs text-dim">'+(r.reason||'&#8212;')+'</td>'+
+                '<td><button class="del-btn" onclick="confirmDel('+r.id+',\''+delLabel.replace(/'/g,"\\'")+'\')" title="Remove this record">&#128465; Remove</button></td>'+
+                '</tr>';
+        }).join('');
+    } catch(e){
+        tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--red)">Error loading data</td></tr>';
+    }
+}
+
+function confirmDel(id, label){
+    deleteId=id;
+    document.getElementById('del-info').textContent=label;
+    document.getElementById('del-modal').style.display='flex';
+}
+function closeModal(){
+    document.getElementById('del-modal').style.display='none';
+    deleteId=null;
+}
+
+async function doDelete(){
+    if(!deleteId) return;
+    var btn=document.querySelector('#del-modal .btn-d');
+    btn.disabled=true; btn.textContent='Removing...';
+    try{
+        var res=await fetch('/admin/attendance/delete/'+deleteId,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'}
+        });
+        var data=await res.json();
+        if(data.success){
+            // Remove the row from table instantly
+            var row=document.getElementById('row-'+deleteId);
+            if(row){
+                row.style.transition='opacity .3s';
+                row.style.opacity='0';
+                setTimeout(function(){row.remove();
+                    // Update count
+                    var cnt=document.getElementById('rec-count');
+                    var n=parseInt(cnt.textContent)||0;
+                    if(n>0) cnt.textContent=(n-1)+' records';
+                    var tot=document.getElementById('sum-total');
+                    tot.textContent=Math.max(0,(parseInt(tot.textContent)||0)-1);
+                },300);
+            }
+            showToast(data.message,'success',3000);
+            closeModal();
+        } else {
+            showToast(data.message,'error');
+            closeModal();
+        }
+    } catch(e){
+        showToast('Network error','error');
+        closeModal();
+    }
+    btn.disabled=false; btn.textContent='🗑 Yes, Remove';
+}
+
+function exportCSV(){
+    var p=new URLSearchParams();
+    var from=document.getElementById('f-from').value;
+    var to=document.getElementById('f-to').value;
+    var dept=document.getElementById('f-dept').value;
+    var roll=document.getElementById('f-roll').value;
+    if(from)p.set('date_from',from); if(to)p.set('date_to',to);
+    if(dept)p.set('department',dept); if(roll)p.set('roll_number',roll);
+    window.location.href='/admin/attendance/export?'+p.toString();
+}
+
+loadData();
+</script>
+{% endblock %}

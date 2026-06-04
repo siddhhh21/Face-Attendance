@@ -1,0 +1,22 @@
+# ── Core Framework ─────────────────────────────────────────────
+flask>=2.3.0
+flask-sqlalchemy>=3.0.0
+flask-login>=0.6.0
+werkzeug>=2.3.0
+
+# ── Face Recognition — MTCNN + FaceNet ────────────────────────
+facenet-pytorch>=2.5.3        # MTCNN detector + InceptionResnetV1 (FaceNet)
+torch>=2.0.0                  # PyTorch (CPU build is fine for demo)
+torchvision>=0.15.0
+Pillow>=9.5.0                 # PIL image handling
+
+# ── Computer Vision ────────────────────────────────────────────
+opencv-python>=4.8.0          # Haar Cascade fallback + image utils
+numpy>=1.24.0
+
+# ── Database (MySQL swap) ──────────────────────────────────────
+# pymysql>=1.1.0              # Uncomment for MySQL
+# mysqlclient>=2.2.0
+
+# ── Email ──────────────────────────────────────────────────────
+# smtplib is built-in — no extra install needed

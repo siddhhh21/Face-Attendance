@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — FaceAttend Pro{% endblock %}
+{% block extra_styles %}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.bar-chart{display:flex;align-items:flex-end;gap:.4rem;height:90px;padding:.3rem 0}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:.25rem;height:100%}
+.bar{width:100%;background:linear-gradient(180deg,var(--acc),rgba(56,189,248,.25));border-radius:4px 4px 0 0;min-height:3px;transition:height .5s ease;cursor:pointer;position:relative}
+.bar:hover::after{content:attr(data-count);position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:.65rem;color:var(--acc);white-space:nowrap;font-family:'JetBrains Mono',monospace}
+.bar-lbl{font-size:.58rem;color:var(--txt3);text-align:center}
+.quick-actions{display:flex;gap:.6rem;flex-wrap:wrap}
+.dept-bar{margin-bottom:.75rem}
+.dept-bar-track{height:3px;background:var(--brd);border-radius:2px;margin-top:.3rem;overflow:hidden}
+.dept-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--acc3),var(--acc));transition:width .6s ease}
+{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+<aside class="sidebar">
+    <div class="sb-section" style="padding:0 1rem .8rem;border-bottom:1px solid var(--brd);margin-bottom:.8rem">
+        <div style="font-size:.65rem;font-weight:700;color:var(--acc);letter-spacing:1.5px">FACEATTEND PRO</div>
+        <div style="font-size:.68rem;color:var(--txt3);margin-top:.15rem">Admin Panel</div>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Navigation</span>
+        <a href="/admin/dashboard" class="sb-link active"><span class="sb-icon">&#128202;</span>Dashboard</a>
+        <a href="/admin/students"  class="sb-link"><span class="sb-icon">&#128101;</span>Students</a>
+        <a href="/admin/students/add" class="sb-link"><span class="sb-icon">&#10133;</span>Add Student</a>
+        <a href="/admin/attendance" class="sb-link"><span class="sb-icon">&#128203;</span>Attendance</a>
+        <a href="/admin/attendance/manual" class="sb-link"><span class="sb-icon">&#9997;</span>Manual Mark</a>
+        <a href="/admin/mail-parents" class="sb-link"><span class="sb-icon">&#128140;</span>Mail Parents</a>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Export</span>
+        <a href="/admin/attendance/export" class="sb-link"><span class="sb-icon">&#128229;</span>Export CSV</a>
+        <a href="/admin/database/export"   class="sb-link"><span class="sb-icon">&#128190;</span>Full DB Export</a>
+    </div>
+    <div class="sb-section" style="margin-top:auto">
+        <a href="/" class="sb-link"><span class="sb-icon">&#127968;</span>Student Portal</a>
+        <a href="/admin/logout" class="sb-link" style="color:var(--red)"><span class="sb-icon">&#9211;</span>Logout</a>
+    </div>
+</aside>
+
+<main class="admin-main">
+    <div class="ph">
+        <div>
+            <div class="ph-title">Command Center</div>
+            <div class="ph-sub" id="dt-display">Loading...</div>
+        </div>
+        <a href="/" class="btn btn-o btn-sm">&#8592; Student Portal</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat">
+            <div class="stat-top"><div class="stat-icon si-b">&#128101;</div></div>
+            <div class="stat-num">{{ stats.total_students }}</div>
+            <div class="stat-lbl">Total Students</div>
+            <div class="stat-bar"><div class="stat-bar-fill" style="width:100%"></div></div>
+        </div>
+        <div class="stat">
+            <div class="stat-top"><div class="stat-icon si-g">&#10003;</div></div>
+            <div class="stat-num" style="color:var(--grn)">{{ stats.today_count }}</div>
+            <div class="stat-lbl">Present Today</div>
+            <div class="stat-bar"><div class="stat-bar-fill" style="width:{{ stats.attendance_pct }}%;background:linear-gradient(90deg,var(--grn2),var(--grn))"></div></div>
+        </div>
+        <div class="stat">
+            <div class="stat-top"><div class="stat-icon si-y">&#128200;</div></div>
+            <div class="stat-num" style="color:var(--yel)">{{ stats.attendance_pct }}%</div>
+            <div class="stat-lbl">Attendance Rate</div>
+            <div class="stat-bar"><div class="stat-bar-fill" style="width:{{ stats.attendance_pct }}%;background:linear-gradient(90deg,#d97706,var(--yel))"></div></div>
+        </div>
+        <div class="stat">
+            <div class="stat-top"><div class="stat-icon si-r">&#128308;</div></div>
+            <div class="stat-num" style="color:var(--red)">{{ stats.total_students - stats.today_count }}</div>
+            <div class="stat-lbl">Absent Today</div>
+            <div class="stat-bar"><div class="stat-bar-fill" style="width:{{ [(stats.total_students - stats.today_count) / stats.total_students * 100 if stats.total_students else 0, 100]|min }}%;background:linear-gradient(90deg,#dc2626,var(--red))"></div></div>
+        </div>
+    </div>
+
+    <div class="two-col mb">
+        <!-- Trend Chart -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">&#128200; 7-Day Trend</span>
+            </div>
+            <div class="card-body">
+                <div class="bar-chart">
+                    {% set max_count = (stats.trend | map(attribute='count') | max) or 1 %}
+                    {% for item in stats.trend %}
+                    <div class="bar-wrap">
+                        <div class="bar" data-count="{{ item.count }}"
+                             style="height:calc({{ item.count }} / {{ max_count }} * 80px + 3px)"></div>
+                        <div class="bar-lbl">{{ item.date }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Dept summary -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">&#127970; Department (Today)</span></div>
+            <div class="card-body">
+                {% if stats.dept_stats %}
+                    {% for d in stats.dept_stats %}
+                    <div class="dept-bar">
+                        <div class="flex justify-between text-sm">
+                            <span>{{ d.dept }}</span>
+                            <span class="text-acc mono">{{ d.count }}</span>
+                        </div>
+                        <div class="dept-bar-track">
+                            <div class="dept-bar-fill" style="width:{{ [d.count * 12, 100]|min }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-dimmer text-sm" style="text-align:center;padding:1rem 0">No attendance data today</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="card mb">
+        <div class="card-header"><span class="card-title">&#9889; Quick Actions</span></div>
+        <div class="card-body">
+            <div class="quick-actions">
+                <a href="/admin/students/add"        class="btn btn-p">&#10133; Add Student</a>
+                <a href="/admin/attendance"           class="btn btn-g">&#128203; Attendance</a>
+                <a href="/admin/attendance/manual"    class="btn btn-g">&#9997; Manual Mark</a>
+                <a href="/admin/attendance/export"    class="btn btn-o">&#128229; Export CSV</a>
+                <a href="/admin/database/export"      class="btn btn-o">&#128190; DB Export</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent attendance -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">&#128336; Recent Attendance</span>
+            <a href="/admin/attendance" class="card-sub" style="text-decoration:none;color:var(--acc)">View all &#8594;</a>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr>
+                    <th>Name</th><th>Roll No</th><th>Department</th>
+                    <th>Time</th><th>Confidence</th><th>Status</th>
+                </tr></thead>
+                <tbody id="recent-tbody">
+                    <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--txt3)">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function updateDt(){
+    var now=new Date();
+    document.getElementById('dt-display').textContent=
+        now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+
+        ' \u00b7 '+now.toLocaleTimeString();
+}
+setInterval(updateDt,1000);updateDt();
+
+async function loadRecent(){
+    try{
+        var res=await fetch('/api/attendance');
+        var data=await res.json();
+        var tbody=document.getElementById('recent-tbody');
+        if(!data.records||!data.records.length){
+            tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--txt3)">No records yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML=data.records.slice(0,10).map(function(r){
+            var badge=r.status==='Present'?'bd-g':r.status==='Manual'?'bd-y':'bd-b';
+            return '<tr><td><strong>'+r.student_name+'</strong></td>'+
+                '<td class="mono text-xs text-dim">'+r.roll_number+'</td>'+
+                '<td class="text-sm">'+r.department+'</td>'+
+                '<td class="mono text-xs">'+r.time+'</td>'+
+                '<td class="text-sm">'+(r.confidence_score!=null?r.confidence_score+'%':'&#8212;')+'</td>'+
+                '<td><span class="badge '+badge+'">'+r.status+'</span></td></tr>';
+        }).join('');
+    } catch(e){console.error(e)}
+}
+loadRecent();
+</script>
+{% endblock %}
+
+{# ── This block is appended – email panel injected via JS into the page ──────#}
+<script>
+// ── Inject Email Panel after Quick Actions card ───────────────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+    var emailPanel = `
+    <div class="card mb" id="email-panel" style="margin-top:1rem">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+            <span class="card-title">&#9993; Absence Email Center</span>
+            <span id="email-status-badge" style="font-size:.62rem;letter-spacing:1.5px;padding:3px 12px;border-radius:20px;background:rgba(100,116,139,0.15);color:var(--txt3);border:1px solid var(--brd)">Checking...</span>
+        </div>
+        <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+
+                <!-- Left: Auto send + status -->
+                <div>
+                    <div style="font-size:.68rem;font-weight:700;letter-spacing:1.5px;color:var(--txt2);text-transform:uppercase;margin-bottom:.8rem">&#128268; Auto Send to All Absent</div>
+                    <div id="email-status-box" style="background:rgba(56,189,248,0.05);border:1px solid var(--brd);border-radius:8px;padding:.9rem 1rem;margin-bottom:.8rem;font-size:.75rem;color:var(--txt2);min-height:70px">
+                        Loading status...
+                    </div>
+                    <button onclick="sendAbsenceEmails()" id="send-all-btn"
+                        style="width:100%;padding:.6rem 1rem;background:linear-gradient(135deg,rgba(248,113,113,.15),rgba(248,113,113,.05));border:1px solid var(--red);color:var(--red);border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:600;letter-spacing:1px;transition:all .2s">
+                        &#9993; Send Absence Emails to All Absent
+                    </button>
+                    <div id="send-all-result" style="margin-top:.6rem;font-size:.72rem;display:none;padding:.6rem;border-radius:6px"></div>
+                </div>
+
+                <!-- Right: Manual by roll number -->
+                <div>
+                    <div style="font-size:.68rem;font-weight:700;letter-spacing:1.5px;color:var(--txt2);text-transform:uppercase;margin-bottom:.8rem">&#128221; Manual Send by Roll Number</div>
+                    <input id="manual-roll-input" type="text" placeholder="Enter Roll Number (e.g. 21CS001)"
+                        style="width:100%;padding:.6rem .9rem;background:rgba(56,189,248,0.05);border:1px solid var(--brd);color:var(--txt);border-radius:8px;font-size:.8rem;outline:none;margin-bottom:.6rem;box-sizing:border-box;transition:border-color .2s"
+                        onkeydown="if(event.key==='Enter')sendManualEmail()"
+                        onfocus="this.style.borderColor='var(--acc)'"
+                        onblur="this.style.borderColor='var(--brd)'" />
+                    <button onclick="sendManualEmail()" id="send-manual-btn"
+                        style="width:100%;padding:.6rem 1rem;background:linear-gradient(135deg,rgba(56,189,248,.15),rgba(56,189,248,.05));border:1px solid var(--acc);color:var(--acc);border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:600;letter-spacing:1px;transition:all .2s">
+                        &#9993; Send Absence Email
+                    </button>
+                    <div id="manual-result" style="margin-top:.6rem;font-size:.72rem;display:none;padding:.6rem;border-radius:6px"></div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    // Insert after Quick Actions card
+    var quickCard = document.querySelector('.quick-actions');
+    if(quickCard){
+        var parentCard = quickCard.closest('.card.mb');
+        if(parentCard) parentCard.insertAdjacentHTML('afterend', emailPanel);
+    }
+
+    loadEmailStatus();
+});
+
+// ── Load status ───────────────────────────────────────────────────────────────
+async function loadEmailStatus(){
+    try{
+        var res = await fetch('/api/email/status');
+        var d = await res.json();
+        var badge = document.getElementById('email-status-badge');
+        var box = document.getElementById('email-status-box');
+
+        if(d.emails_sent_today){
+            badge.textContent = '✅ Sent at ' + d.sent_at;
+            badge.style.background = 'rgba(52,211,153,0.12)';
+            badge.style.color = 'var(--grn)';
+            badge.style.borderColor = 'var(--grn)';
+            box.innerHTML =
+                '<div style="color:var(--grn);font-weight:600;margin-bottom:.4rem">✅ Absence emails sent today at ' + d.sent_at + '</div>' +
+                '<div style="color:var(--txt3)">Sent to <strong style="color:var(--grn)">' + d.sent.length + '</strong> student(s)' +
+                (d.failed.length ? ' · <strong style="color:var(--red)">' + d.failed.length + ' failed</strong>' : '') +
+                (d.no_email.length ? ' · <strong style="color:var(--yel)">' + d.no_email.length + ' had no email</strong>' : '') + '</div>' +
+                (d.sent.length ? '<div style="color:var(--txt3);margin-top:.3rem;font-size:.68rem">Rolls: ' + d.sent.join(', ') + '</div>' : '');
+        } else {
+            var absentCount = d.absent_count;
+            badge.textContent = absentCount > 0 ? '⚠️ Not Sent Yet' : '— No Absences';
+            badge.style.background = absentCount > 0 ? 'rgba(248,113,113,0.1)' : 'rgba(52,211,153,0.08)';
+            badge.style.color = absentCount > 0 ? 'var(--red)' : 'var(--grn)';
+            badge.style.borderColor = absentCount > 0 ? 'var(--red)' : 'var(--grn)';
+            box.innerHTML = absentCount > 0
+                ? '<div style="color:var(--yel)">⚠️ <strong>' + absentCount + '</strong> student(s) absent today — absence emails not sent yet.</div><div style="color:var(--txt3);margin-top:.3rem">Click the button below to notify them.</div>'
+                : '<div style="color:var(--grn)">✅ All students present today — no absence emails needed.</div>';
+        }
+    }catch(e){
+        console.error('Email status error:', e);
+    }
+}
+
+// ── Send to all absent ────────────────────────────────────────────────────────
+async function sendAbsenceEmails(){
+    var btn = document.getElementById('send-all-btn');
+    var resultBox = document.getElementById('send-all-result');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sending...';
+    resultBox.style.display = 'none';
+
+    try{
+        var res = await fetch('/api/email/send-absences', {method:'POST',headers:{'Content-Type':'application/json'}});
+        var d = await res.json();
+        resultBox.style.display = 'block';
+        if(d.success){
+            resultBox.style.background = 'rgba(52,211,153,0.08)';
+            resultBox.style.border = '1px solid var(--grn)';
+            resultBox.style.color = 'var(--grn)';
+            resultBox.innerHTML = '✅ ' + d.message;
+        } else {
+            resultBox.style.background = 'rgba(248,113,113,0.08)';
+            resultBox.style.border = '1px solid var(--red)';
+            resultBox.style.color = 'var(--red)';
+            resultBox.innerHTML = '❌ ' + (d.message || 'Failed');
+        }
+        loadEmailStatus();
+    }catch(e){
+        resultBox.style.display = 'block';
+        resultBox.style.background = 'rgba(248,113,113,0.08)';
+        resultBox.style.border = '1px solid var(--red)';
+        resultBox.style.color = 'var(--red)';
+        resultBox.innerHTML = '❌ Network error: ' + e.message;
+    }
+
+    btn.disabled = false;
+    btn.textContent = '✉ Send Absence Emails to All Absent';
+}
+
+// ── Manual send ───────────────────────────────────────────────────────────────
+async function sendManualEmail(){
+    var roll = document.getElementById('manual-roll-input').value.trim();
+    var btn = document.getElementById('send-manual-btn');
+    var resultBox = document.getElementById('manual-result');
+
+    if(!roll){ 
+        resultBox.style.display='block';
+        resultBox.style.background='rgba(248,113,113,0.08)';
+        resultBox.style.border='1px solid var(--red)';
+        resultBox.style.color='var(--red)';
+        resultBox.innerHTML='❌ Please enter a roll number';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Sending...';
+    resultBox.style.display = 'none';
+
+    try{
+        var res = await fetch('/api/email/send-manual', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({roll_number: roll})
+        });
+        var d = await res.json();
+        resultBox.style.display = 'block';
+        if(d.success){
+            resultBox.style.background = 'rgba(52,211,153,0.08)';
+            resultBox.style.border = '1px solid var(--grn)';
+            resultBox.style.color = 'var(--grn)';
+            resultBox.innerHTML = '✅ ' + d.message;
+        } else {
+            resultBox.style.background = 'rgba(248,113,113,0.08)';
+            resultBox.style.border = '1px solid var(--red)';
+            resultBox.style.color = 'var(--red)';
+            resultBox.innerHTML = '❌ ' + d.message;
+        }
+    }catch(e){
+        resultBox.style.display = 'block';
+        resultBox.style.background = 'rgba(248,113,113,0.08)';
+        resultBox.style.border = '1px solid var(--red)';
+        resultBox.style.color = 'var(--red)';
+        resultBox.innerHTML = '❌ Network error: ' + e.message;
+    }
+
+    btn.disabled = false;
+    btn.textContent = '✉ Send Absence Email';
+}
+</script>

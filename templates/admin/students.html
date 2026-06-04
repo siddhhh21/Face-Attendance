@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Students — FaceAttend Pro{% endblock %}
+{% block extra_styles %}
+.avatar{width:34px;height:34px;border-radius:50%;border:1px solid var(--brd);object-fit:cover;background:rgba(56,189,248,.06);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+.search-wrap{position:relative;flex:1;max-width:280px}
+.search-wrap .form-control{padding-left:2.1rem;font-size:.84rem}
+.search-icon{position:absolute;left:.75rem;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:.82rem;pointer-events:none}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+<aside class="sidebar">
+    <div class="sb-section" style="padding:0 1rem .8rem;border-bottom:1px solid var(--brd);margin-bottom:.8rem">
+        <div style="font-size:.65rem;font-weight:700;color:var(--acc);letter-spacing:1.5px">FACEATTEND PRO</div>
+        <div style="font-size:.68rem;color:var(--txt3);margin-top:.15rem">Admin Panel</div>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Navigation</span>
+        <a href="/admin/dashboard"         class="sb-link"><span class="sb-icon">&#128202;</span>Dashboard</a>
+        <a href="/admin/students"          class="sb-link active"><span class="sb-icon">&#128101;</span>Students</a>
+        <a href="/admin/students/add"      class="sb-link"><span class="sb-icon">&#10133;</span>Add Student</a>
+        <a href="/admin/attendance"        class="sb-link"><span class="sb-icon">&#128203;</span>Attendance</a>
+        <a href="/admin/attendance/manual" class="sb-link"><span class="sb-icon">&#9997;</span>Manual Mark</a>
+        <a href="/admin/mail-parents" class="sb-link"><span class="sb-icon">&#128140;</span>Mail Parents</a>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Export</span>
+        <a href="/admin/attendance/export" class="sb-link"><span class="sb-icon">&#128229;</span>Export CSV</a>
+        <a href="/admin/database/export"   class="sb-link"><span class="sb-icon">&#128190;</span>Full DB Export</a>
+    </div>
+    <div class="sb-section">
+        <a href="/"             class="sb-link"><span class="sb-icon">&#127968;</span>Student Portal</a>
+        <a href="/admin/logout" class="sb-link" style="color:var(--red)"><span class="sb-icon">&#9211;</span>Logout</a>
+    </div>
+</aside>
+
+<main class="admin-main">
+    <div class="ph">
+        <div>
+            <div class="ph-title">Student Registry</div>
+            <div class="ph-sub">{{ students|length }} students enrolled</div>
+        </div>
+        <a href="/admin/students/add" class="btn btn-p">&#10133; Add Student</a>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex items-center gap mb-lg" style="flex-wrap:wrap">
+        <div class="search-wrap">
+            <span class="search-icon">&#128269;</span>
+            <input type="text" class="form-control" placeholder="Search name or roll..." id="search-inp" oninput="filterTable()">
+        </div>
+        <select class="form-control" id="dept-filter" style="max-width:220px;font-size:.84rem" onchange="filterTable()">
+            <option value="">All Departments</option>
+            {% set depts = students | map(attribute='department') | unique | list %}
+            {% for d in depts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+        </select>
+        <span class="mono text-dimmer" style="font-size:.72rem" id="filter-count">Showing {{ students|length }}</span>
+    </div>
+
+    <div class="card">
+        <div class="table-wrap">
+            <table class="data-table" id="stud-table">
+                <thead><tr>
+                    <th></th><th>Name</th><th>Roll No</th><th>Department</th>
+                    <th>Registered</th><th>Face Data</th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                {% for s in students %}
+                <tr data-name="{{ s.name|lower }}" data-roll="{{ s.roll_number|lower }}" data-dept="{{ s.department }}">
+                    <td>
+                        {% if s.face_image %}<img src="{{ s.face_image }}" class="avatar">
+                        {% else %}<div class="avatar">&#128100;</div>{% endif %}
+                    </td>
+                    <td><strong>{{ s.name }}</strong></td>
+                    <td class="mono text-dim" style="font-size:.78rem">{{ s.roll_number }}</td>
+                    <td class="text-sm">{{ s.department }}</td>
+                    <td class="mono text-dimmer" style="font-size:.76rem">{{ s.registered_at }}</td>
+                    <td>
+                        {% if s.face_available %}
+                            <span class="badge bd-g" title="{{ s.embedding_count }} face captures">&#10003; Available ({{ s.embedding_count }})</span>
+                        {% elif s.embedding_count > 0 %}
+                            <a href="/admin/students/edit/{{ s.id }}" class="badge" style="background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid #fbbf24;text-decoration:none;cursor:pointer" title="Only {{ s.embedding_count }} capture(s) — need 3+">&#9888; Partial ({{ s.embedding_count }}/3)</a>
+                        {% else %}
+                            <a href="/admin/students/edit/{{ s.id }}" class="badge bd-r" style="text-decoration:none;cursor:pointer" title="Click to add face data">&#10005; Missing — Fix Now</a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="flex gap-xs">
+                            <a href="/admin/students/edit/{{ s.id }}" class="btn btn-g btn-sm">&#9998;</a>
+                            <button class="btn btn-d btn-sm" onclick="confirmDel({{ s.id }},'{{ s.name }}')">&#128465;</button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--txt3)">
+                    No students registered. <a href="/admin/students/add" style="color:var(--acc)">Add the first student</a>
+                </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+</div>
+
+<!-- Delete Modal -->
+<div id="del-modal" class="modal-backdrop" style="display:none">
+    <div class="card" style="max-width:400px;width:90%">
+        <div class="card-header"><span class="card-title" style="color:var(--red)">&#9888; Confirm Delete</span></div>
+        <div class="card-body">
+            <p class="mb" style="font-size:.9rem">Remove student <strong id="del-name"></strong>?</p>
+            <label class="flex items-center gap-sm mb-lg" style="font-size:.84rem;cursor:pointer">
+                <input type="checkbox" id="del-att" checked> Also remove attendance records
+            </label>
+            <div class="flex gap-sm">
+                <button class="btn btn-d" onclick="doDelete()">&#128465; Delete</button>
+                <button class="btn btn-o" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+var deleteId=null;
+function filterTable(){
+    var q=document.getElementById('search-inp').value.toLowerCase();
+    var dept=document.getElementById('dept-filter').value;
+    var rows=document.querySelectorAll('#stud-table tbody tr[data-name]');
+    var vis=0;
+    rows.forEach(function(r){
+        var mq=!q||(r.dataset.name.includes(q)||r.dataset.roll.includes(q));
+        var md=!dept||r.dataset.dept===dept;
+        r.style.display=(mq&&md)?'':'none';
+        if(mq&&md)vis++;
+    });
+    document.getElementById('filter-count').textContent='Showing '+vis;
+}
+function confirmDel(id,name){
+    deleteId=id;document.getElementById('del-name').textContent=name;
+    document.getElementById('del-modal').style.display='flex';
+}
+function closeModal(){document.getElementById('del-modal').style.display='none';deleteId=null}
+async function doDelete(){
+    if(!deleteId)return;
+    var ia=document.getElementById('del-att').checked;
+    try{
+        var res=await fetch('/admin/students/delete/'+deleteId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({include_attendance:ia})});
+        var data=await res.json();
+        if(data.success){showToast(data.message,'success');setTimeout(function(){location.reload()},1200)}
+        else showToast(data.message,'error');
+    } catch(e){showToast('Error deleting student','error')}
+    closeModal();
+}
+</script>
+{% endblock %}

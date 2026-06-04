@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Admin Login — FaceAttend Pro{% endblock %}
+{% block extra_styles %}
+.login-wrap{min-height:calc(100vh - 62px);display:flex;align-items:center;justify-content:center;padding:2rem}
+.login-box{width:100%;max-width:420px}
+.login-icon{width:68px;height:68px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.22);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 1.3rem;animation:pulse 3s ease infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(56,189,248,.25)}50%{box-shadow:0 0 0 10px rgba(56,189,248,0)}}
+.login-title{font-size:1.2rem;font-weight:800;letter-spacing:-.3px;text-align:center;margin-bottom:.3rem}
+.login-sub{font-size:.78rem;color:var(--txt3);text-align:center;letter-spacing:.5px;margin-bottom:1.8rem}
+.input-wrap{position:relative}
+.input-icon{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:.9rem;pointer-events:none}
+.input-wrap .form-control{padding-left:2.5rem}
+.login-btn{width:100%;padding:.78rem;font-size:.82rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;background:linear-gradient(135deg,var(--acc2),var(--acc));color:#fff;border:none;border-radius:var(--rs);cursor:pointer;transition:all var(--tr);box-shadow:0 4px 16px rgba(56,189,248,.28)}
+.login-btn:hover{box-shadow:0 6px 26px rgba(56,189,248,.44);transform:translateY(-1px)}
+.login-hint{text-align:center;font-size:.7rem;color:var(--txt3);margin-top:1rem;font-family:'JetBrains Mono',monospace;letter-spacing:.5px}
+{% endblock %}
+{% block content %}
+<div class="login-wrap" style="padding-top:calc(62px + 1rem)">
+<div class="login-box">
+    <div class="login-icon">&#128272;</div>
+    <div class="login-title">Admin Portal</div>
+    <div class="login-sub">Authorized Personnel Only</div>
+
+    <div class="card">
+        <div class="card-body">
+            <div id="err-box" class="alert al-er" style="display:none">&#10005; Invalid credentials. Access denied.</div>
+
+            <div class="form-group">
+                <label class="form-label">Admin ID</label>
+                <div class="input-wrap">
+                    <span class="input-icon">&#128100;</span>
+                    <input type="text" id="uid" class="form-control" placeholder="Enter admin ID" autocomplete="username">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:1.3rem">
+                <label class="form-label">Password</label>
+                <div class="input-wrap">
+                    <span class="input-icon">&#128272;</span>
+                    <input type="password" id="pwd" class="form-control" placeholder="Enter password" autocomplete="current-password">
+                </div>
+            </div>
+
+            <button class="login-btn" id="login-btn" onclick="doLogin()">AUTHENTICATE</button>
+            <div class="login-hint">siddhh &nbsp;/&nbsp; 2101</div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+async function doLogin(){
+    var u=document.getElementById('uid').value.trim();
+    var p=document.getElementById('pwd').value.trim();
+    var btn=document.getElementById('login-btn');
+    var err=document.getElementById('err-box');
+    if(!u||!p){err.textContent='&#10005; Please enter both fields.';err.style.display='flex';return}
+    btn.textContent='AUTHENTICATING...';btn.disabled=true;err.style.display='none';
+    try{
+        var res=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+        var data=await res.json();
+        if(data.success){
+            btn.textContent='&#10003; ACCESS GRANTED';
+            btn.style.background='linear-gradient(135deg,var(--grn2),var(--grn))';
+            setTimeout(function(){window.location.href=data.redirect},600);
+        } else {
+            err.innerHTML='&#10005; '+(data.message||'Invalid credentials');
+            err.style.display='flex';
+            btn.textContent='AUTHENTICATE';btn.disabled=false;
+            document.querySelector('.card').animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'translateX(0)'}],{duration:280});
+        }
+    } catch(e){err.innerHTML='&#10005; Network error.';err.style.display='flex';btn.textContent='AUTHENTICATE';btn.disabled=false}
+}
+</script>
+{% endblock %}

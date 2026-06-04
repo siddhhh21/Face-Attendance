@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block title %}Edit Student — FaceAttend Pro{% endblock %}
+{% block extra_styles %}
+.cam-box{background:#000;border:1px solid var(--brd);border-radius:var(--r);overflow:hidden;position:relative;aspect-ratio:4/3}
+#re-video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
+.cam-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.6rem;color:var(--txt3)}
+.face-oval{position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);width:44%;height:60%;border:1.5px dashed rgba(56,189,248,.35);border-radius:50% 50% 45% 45%;display:none}
+.cam-corner{position:absolute;width:18px;height:18px}
+.cam-corner.tl{top:8px;left:8px;border-top:2px solid var(--acc);border-left:2px solid var(--acc)}
+.cam-corner.tr{top:8px;right:8px;border-top:2px solid var(--acc);border-right:2px solid var(--acc)}
+.cam-corner.bl{bottom:8px;left:8px;border-bottom:2px solid var(--acc);border-left:2px solid var(--acc)}
+.cam-corner.br{bottom:8px;right:8px;border-bottom:2px solid var(--acc);border-right:2px solid var(--acc)}
+.scount-badge{position:absolute;top:.6rem;right:.6rem;background:rgba(0,0,0,.75);color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:.7rem;padding:.2rem .55rem;border-radius:4px;border:1px solid var(--brd);display:none}
+.samples-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;margin-top:.8rem}
+.sample-slot{aspect-ratio:1;border:1px solid var(--brd);border-radius:var(--rs);overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--txt3);position:relative}
+.sample-slot img{width:100%;height:100%;object-fit:cover}
+.remove-btn{position:absolute;top:2px;right:2px;background:rgba(248,113,113,.85);border:none;border-radius:50%;width:16px;height:16px;color:#fff;font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center}
+.sample-slot:hover .remove-btn{display:flex}
+.face-status{padding:.5rem .9rem;border-radius:6px;font-size:.75rem;font-weight:600;letter-spacing:.5px;display:inline-flex;align-items:center;gap:.4rem}
+.face-ok{background:rgba(52,211,153,.1);border:1px solid var(--grn);color:var(--grn)}
+.face-bad{background:rgba(248,113,113,.1);border:1px solid var(--red);color:var(--red)}
+{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+<aside class="sidebar">
+    <div class="sb-section" style="padding:0 1rem .8rem;border-bottom:1px solid var(--brd);margin-bottom:.8rem">
+        <div style="font-size:.65rem;font-weight:700;color:var(--acc);letter-spacing:1.5px">FACEATTEND PRO</div>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Navigation</span>
+        <a href="/admin/dashboard"    class="sb-link"><span class="sb-icon">&#128202;</span>Dashboard</a>
+        <a href="/admin/students"     class="sb-link active"><span class="sb-icon">&#128101;</span>Students</a>
+        <a href="/admin/students/add" class="sb-link"><span class="sb-icon">&#10133;</span>Add Student</a>
+        <a href="/admin/attendance"   class="sb-link"><span class="sb-icon">&#128203;</span>Attendance</a>
+        <a href="/admin/attendance/manual" class="sb-link"><span class="sb-icon">&#9997;</span>Manual Mark</a>
+        <a href="/admin/mail-parents" class="sb-link"><span class="sb-icon">&#128140;</span>Mail Parents</a>
+    </div>
+    <div class="sb-section">
+        <a href="/"             class="sb-link"><span class="sb-icon">&#127968;</span>Student Portal</a>
+        <a href="/admin/logout" class="sb-link" style="color:var(--red)"><span class="sb-icon">&#9211;</span>Logout</a>
+    </div>
+</aside>
+
+<main class="admin-main">
+    <div class="ph">
+        <div>
+            <div class="ph-title">Edit Student</div>
+            <div class="ph-sub mono text-dimmer">{{ student.roll_number }}</div>
+        </div>
+        <a href="/admin/students" class="btn btn-o btn-sm">&#8592; Back</a>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+
+        <!-- Left: Info form -->
+        <div>
+            <div class="card mb">
+                <div class="card-header"><span class="card-title">&#128100; Student Information</span></div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" id="e-name" class="form-control" value="{{ student.name }}">
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Roll Number</label>
+                            <input type="text" id="e-roll" class="form-control" value="{{ student.roll_number }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Department</label>
+                            <select id="e-dept" class="form-control">
+                                {% for opt in ['Computer Science','Information Technology','Electronics & Communication','Electrical Engineering','Mechanical Engineering','Civil Engineering','Artificial Intelligence & Data Science','MBA','MCA'] %}
+                                <option value="{{ opt }}" {% if student.department == opt %}selected{% endif %}>{{ opt }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="e-email" class="form-control" value="{{ student.email or '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" id="e-phone" class="form-control" value="{{ student.phone or '' }}">
+                        </div>
+                    </div>
+                    <div class="flex gap-sm mt">
+                        <button class="btn btn-s" onclick="saveStudent()">&#10003; Save Info</button>
+                        <a href="/admin/students" class="btn btn-o">Cancel</a>
+                    </div>
+                    <div id="edit-result" style="margin-top:.8rem;display:none"></div>
+                </div>
+            </div>
+
+            <!-- Face data status -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">&#128065; Face Data Status</span>
+                </div>
+                <div class="card-body">
+                    {% if student.has_embedding %}
+                    <div class="face-status face-ok">&#10003; Face data enrolled — recognition active</div>
+                    {% if student.face_image %}
+                    <div style="margin-top:.8rem;display:flex;align-items:center;gap:.8rem">
+                        <img src="{{ student.face_image }}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;border:1px solid var(--brd)">
+                        <span style="font-size:.75rem;color:var(--txt3)">Stored face thumbnail</span>
+                    </div>
+                    {% endif %}
+                    <p style="font-size:.75rem;color:var(--txt3);margin-top:.6rem">To update face data, use the capture panel on the right and click <strong>Update Face Data</strong>.</p>
+                    {% else %}
+                    <div class="face-status face-bad">&#10005; Face data missing — student cannot be auto-recognised</div>
+                    <p style="font-size:.75rem;color:var(--yel);margin-top:.6rem">&#9888; Capture face samples on the right and click <strong>Update Face Data</strong> to fix this.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Face re-registration -->
+        <div>
+            <div class="card mb">
+                <div class="card-header">
+                    <span class="card-title">&#128247; Re-register Face</span>
+                    <span id="cam-status2" class="card-sub">Camera off</span>
+                </div>
+                <div class="card-body">
+                    <div class="cam-box">
+                        <div class="cam-placeholder" id="cam-ph2">
+                            <span style="font-size:2rem">&#128247;</span>
+                            <span style="font-size:.75rem">Camera not started</span>
+                        </div>
+                        <video id="re-video" autoplay muted playsinline></video>
+                        <div class="face-oval" id="face-oval2"></div>
+                        <div class="cam-corner tl"></div><div class="cam-corner tr"></div>
+                        <div class="cam-corner bl"></div><div class="cam-corner br"></div>
+                        <div class="scount-badge" id="scount2"><span id="scnt2">0</span>/10</div>
+                    </div>
+                    <canvas id="re-canvas" style="display:none"></canvas>
+
+                    <div class="flex gap-sm mt" style="flex-wrap:wrap">
+                        <button class="btn btn-p btn-sm" id="start-btn2" onclick="startCam2()">&#9654; Start Camera</button>
+                        <button class="btn btn-s btn-sm" id="cap-btn2" onclick="capFrame2()" disabled>&#128247; Capture</button>
+                        <button class="btn btn-g btn-sm" id="auto-btn2" onclick="toggleAuto2()" disabled>&#9889; Auto</button>
+                        <button class="btn btn-o btn-sm" onclick="clearFrames2()">&#10005; Clear</button>
+                    </div>
+
+                    <div class="text-xs text-dimmer mt-lg" style="line-height:1.6">
+                        Capture 5–10 images in good lighting. Move head slightly between shots.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample grid -->
+            <div class="card mb">
+                <div class="card-header">
+                    <span class="card-title">Captured Samples</span>
+                    <span class="card-sub"><span id="cnt2" class="text-acc">0</span>/10</span>
+                </div>
+                <div class="card-body">
+                    <div class="samples-grid" id="sgrid2">
+                        {% for i in range(10) %}<div class="sample-slot" id="rslot-{{ i }}">+</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-s btn-full" id="upd-btn" onclick="updateFace()" style="padding:.75rem">
+                &#128065; Update Face Data
+            </button>
+            <div id="face-result" style="margin-top:.8rem;display:none"></div>
+        </div>
+
+    </div>
+</main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// ── Info save ─────────────────────────────────────────────────────────────────
+async function saveStudent(){
+    var res=await fetch('/admin/students/edit/{{ student.id }}',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+            name:document.getElementById('e-name').value.trim(),
+            roll_number:document.getElementById('e-roll').value.trim(),
+            department:document.getElementById('e-dept').value,
+            email:document.getElementById('e-email').value.trim(),
+            phone:document.getElementById('e-phone').value.trim()
+        })
+    });
+    var data=await res.json();
+    var el=document.getElementById('edit-result');el.style.display='block';
+    if(data.success){
+        el.className='alert al-ok';el.innerHTML='&#10003; '+data.message;
+        showToast('Student updated!','success');
+        setTimeout(function(){window.location.href='/admin/students'},1500);
+    } else {
+        el.className='alert al-er';el.innerHTML='&#10005; '+data.message;
+    }
+}
+
+// ── Camera 2 (re-register) ────────────────────────────────────────────────────
+var stream2=null, frames2=[], autoInt2=null, isAuto2=false;
+
+async function startCam2(){
+    try{
+        stream2=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
+        var v=document.getElementById('re-video');
+        v.srcObject=stream2; v.style.display='block';
+        document.getElementById('cam-ph2').style.display='none';
+        document.getElementById('face-oval2').style.display='block';
+        document.getElementById('scount2').style.display='block';
+        document.getElementById('cam-status2').textContent='● LIVE';
+        document.getElementById('cam-status2').style.color='var(--grn)';
+        document.getElementById('cap-btn2').disabled=false;
+        document.getElementById('auto-btn2').disabled=false;
+        document.getElementById('start-btn2').textContent='■ Stop';
+        document.getElementById('start-btn2').onclick=stopCam2;
+    } catch(e){showToast('Camera error: '+e.message,'error')}
+}
+function stopCam2(){
+    if(stream2){stream2.getTracks().forEach(function(t){t.stop()});stream2=null}
+    document.getElementById('re-video').style.display='none';
+    document.getElementById('cam-ph2').style.display='flex';
+    document.getElementById('face-oval2').style.display='none';
+    document.getElementById('scount2').style.display='none';
+    document.getElementById('cam-status2').textContent='Camera off';
+    document.getElementById('cam-status2').style.color='';
+    document.getElementById('cap-btn2').disabled=true;
+    document.getElementById('auto-btn2').disabled=true;
+    document.getElementById('start-btn2').textContent='▶ Start Camera';
+    document.getElementById('start-btn2').onclick=startCam2;
+    if(isAuto2)toggleAuto2();
+}
+function capFrame2(){
+    if(frames2.length>=10){showToast('Max 10 samples','info');return}
+    var v=document.getElementById('re-video');
+    var c=document.getElementById('re-canvas');
+    c.width=v.videoWidth; c.height=v.videoHeight;
+    var ctx=c.getContext('2d');
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(v,-c.width,0,c.width,c.height); ctx.restore();
+    frames2.push(c.toDataURL('image/jpeg',0.85));
+    updateGrid2();
+    showToast('Sample '+frames2.length+' captured','success',1000);
+}
+function updateGrid2(){
+    document.getElementById('cnt2').textContent=frames2.length;
+    document.getElementById('scnt2').textContent=frames2.length;
+    for(var i=0;i<10;i++){
+        var s=document.getElementById('rslot-'+i);
+        if(i<frames2.length){
+            s.innerHTML='<img src="'+frames2[i]+'" alt="s'+(i+1)+'"><button class="remove-btn" onclick="removeF2('+i+')">✕</button>';
+        } else { s.innerHTML=i<3?'<span style="color:var(--acc);opacity:.4">+</span>':'+' }
+    }
+}
+function removeF2(i){frames2.splice(i,1);updateGrid2()}
+function clearFrames2(){frames2=[];updateGrid2()}
+function toggleAuto2(){
+    var btn=document.getElementById('auto-btn2');
+    if(isAuto2){clearInterval(autoInt2);isAuto2=false;btn.textContent='⚡ Auto';btn.className='btn btn-g btn-sm'}
+    else{
+        isAuto2=true; btn.textContent='■ Stop Auto'; btn.className='btn btn-d btn-sm';
+        autoInt2=setInterval(function(){if(frames2.length>=10){toggleAuto2();return}capFrame2()},800);
+    }
+}
+
+// ── Update face data ──────────────────────────────────────────────────────────
+async function updateFace(){
+    if(frames2.length<3){showToast('Capture at least 3 face samples first','error');return}
+    var btn=document.getElementById('upd-btn');
+    btn.disabled=true; btn.textContent='⏳ Processing...';
+
+    var resultEl=document.getElementById('face-result');
+    resultEl.style.display='none';
+
+    try{
+        var res=await fetch('/api/students/{{ student.id }}/update',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({frames:frames2})
+        });
+        var data=await res.json();
+        resultEl.style.display='block';
+        if(data.success){
+            resultEl.className='alert al-ok';
+            resultEl.innerHTML='&#10003; Face data updated successfully with '+frames2.length+' samples!';
+            showToast('Face data updated!','success',3000);
+            setTimeout(function(){window.location.href='/admin/students'},2000);
+        } else {
+            resultEl.className='alert al-er';
+            resultEl.innerHTML='&#10005; '+data.message+'<br><small style="color:var(--txt3)">Tip: ensure good lighting and face the camera directly. The system needs to detect your face in at least 2 frames.</small>';
+        }
+    } catch(e){
+        resultEl.style.display='block';
+        resultEl.className='alert al-er';
+        resultEl.innerHTML='&#10005; Network error: '+e.message;
+    }
+    btn.disabled=false; btn.textContent='👁 Update Face Data';
+}
+</script>
+{% endblock %}

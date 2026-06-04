@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}Add Student — FaceAttend Pro{% endblock %}
+{% block extra_styles %}
+.cam-box{background:#000;border:1px solid var(--brd);border-radius:var(--r);overflow:hidden;position:relative;aspect-ratio:4/3}
+#reg-video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
+.cam-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.6rem;color:var(--txt3)}
+.face-oval{position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);width:44%;height:60%;border:1.5px dashed rgba(56,189,248,.35);border-radius:50% 50% 45% 45%;display:none}
+.cam-corner{position:absolute;width:20px;height:20px}
+.cam-corner.tl{top:8px;left:8px;border-top:2px solid var(--acc);border-left:2px solid var(--acc)}
+.cam-corner.tr{top:8px;right:8px;border-top:2px solid var(--acc);border-right:2px solid var(--acc)}
+.cam-corner.bl{bottom:8px;left:8px;border-bottom:2px solid var(--acc);border-left:2px solid var(--acc)}
+.cam-corner.br{bottom:8px;right:8px;border-bottom:2px solid var(--acc);border-right:2px solid var(--acc)}
+.sample-count-badge{position:absolute;top:.6rem;right:.6rem;background:rgba(0,0,0,.75);color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:.7rem;padding:.2rem .55rem;border-radius:4px;border:1px solid var(--brd);display:none}
+.samples-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.45rem;margin-top:.9rem}
+.sample-slot{aspect-ratio:1;border:1px solid var(--brd);border-radius:var(--rs);overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--txt3);position:relative}
+.sample-slot img{width:100%;height:100%;object-fit:cover}
+.remove-btn{position:absolute;top:2px;right:2px;background:rgba(248,113,113,.85);border:none;border-radius:50%;width:16px;height:16px;color:#fff;font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center}
+.sample-slot:hover .remove-btn{display:flex}
+.checklist-item{font-size:.82rem;line-height:1.8;color:var(--txt3);transition:color var(--tr)}
+.checklist-item.done{color:var(--grn)}
+{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+<aside class="sidebar">
+    <div class="sb-section" style="padding:0 1rem .8rem;border-bottom:1px solid var(--brd);margin-bottom:.8rem">
+        <div style="font-size:.65rem;font-weight:700;color:var(--acc);letter-spacing:1.5px">FACEATTEND PRO</div>
+        <div style="font-size:.68rem;color:var(--txt3);margin-top:.15rem">Admin Panel</div>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Navigation</span>
+        <a href="/admin/dashboard"         class="sb-link"><span class="sb-icon">&#128202;</span>Dashboard</a>
+        <a href="/admin/students"          class="sb-link"><span class="sb-icon">&#128101;</span>Students</a>
+        <a href="/admin/students/add"      class="sb-link active"><span class="sb-icon">&#10133;</span>Add Student</a>
+        <a href="/admin/attendance"        class="sb-link"><span class="sb-icon">&#128203;</span>Attendance</a>
+        <a href="/admin/attendance/manual" class="sb-link"><span class="sb-icon">&#9997;</span>Manual Mark</a>
+        <a href="/admin/mail-parents" class="sb-link"><span class="sb-icon">&#128140;</span>Mail Parents</a>
+    </div>
+    <div class="sb-section">
+        <a href="/"             class="sb-link"><span class="sb-icon">&#127968;</span>Student Portal</a>
+        <a href="/admin/logout" class="sb-link" style="color:var(--red)"><span class="sb-icon">&#9211;</span>Logout</a>
+    </div>
+</aside>
+
+<main class="admin-main">
+    <div class="ph">
+        <div>
+            <div class="ph-title">Register New Student</div>
+            <div class="ph-sub">Capture face samples to enroll in the system</div>
+        </div>
+        <a href="/admin/students" class="btn btn-o btn-sm">&#8592; Back</a>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.3rem">
+        <!-- Webcam panel -->
+        <div>
+            <div class="card mb">
+                <div class="card-header">
+                    <span class="card-title">&#128247; Face Capture</span>
+                    <span id="cam-status" class="card-sub">Camera off</span>
+                </div>
+                <div class="card-body">
+                    <div class="cam-box" id="cam-box">
+                        <div class="cam-placeholder" id="cam-ph">
+                            <span style="font-size:2.5rem">&#128247;</span>
+                            <span style="font-size:.8rem;letter-spacing:.5px">Camera not started</span>
+                        </div>
+                        <video id="reg-video" autoplay muted playsinline></video>
+                        <div class="face-oval" id="face-oval"></div>
+                        <div class="cam-corner tl"></div><div class="cam-corner tr"></div>
+                        <div class="cam-corner bl"></div><div class="cam-corner br"></div>
+                        <div class="sample-count-badge" id="scount-badge"><span id="scnt">0</span>/10</div>
+                    </div>
+                    <canvas id="reg-canvas" style="display:none"></canvas>
+
+                    <div class="flex gap-sm mt" style="flex-wrap:wrap">
+                        <button class="btn btn-p btn-sm" id="start-btn" onclick="startCam()">&#9654; Start Camera</button>
+                        <button class="btn btn-s btn-sm" id="cap-btn" onclick="captureFrame()" disabled>&#128247; Capture</button>
+                        <button class="btn btn-g btn-sm" id="auto-btn" onclick="toggleAuto()" disabled>&#9889; Auto</button>
+                        <button class="btn btn-o btn-sm" onclick="clearSamples()">&#10005; Clear</button>
+                    </div>
+                    <div class="text-xs text-dimmer mt-lg" style="line-height:1.6">Capture 5–10 images. Move head slightly between shots for better accuracy.</div>
+                    <div id="debug-box" style="margin-top:.6rem;padding:.5rem .8rem;background:rgba(56,189,248,.05);border:1px solid var(--brd);border-radius:6px;font-size:.7rem;font-family:'JetBrains Mono',monospace;color:var(--txt3);display:none">
+                        Frames captured: <span id="dbg-frames">0</span> &nbsp;|&nbsp;
+                        Last detection: <span id="dbg-detect">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample grid -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Captured Samples</span>
+                    <span class="card-sub"><span id="cnt-display" class="text-acc">0</span>/10</span>
+                </div>
+                <div class="card-body">
+                    <div class="samples-grid" id="samples-grid">
+                        {% for i in range(10) %}<div class="sample-slot" id="slot-{{ i }}">+</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student form -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">&#128100; Student Information</span></div>
+            <div class="card-body">
+                <div class="form-grid">
+                    <div class="form-group" style="grid-column:1/-1">
+                        <label class="form-label">Full Name <span class="req">*</span></label>
+                        <input type="text" id="f-name" class="form-control" placeholder="e.g. Siddhardha">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Roll Number <span class="req">*</span></label>
+                        <input type="text" id="f-roll" class="form-control" placeholder="24K81A0561">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Department <span class="req">*</span></label>
+                        <select id="f-dept" class="form-control">
+                            <option value="">Select Department</option>
+                            <option>Computer Science</option><option>Information Technology</option>
+                            <option>Electronics &amp; Communication</option><option>Electrical Engineering</option>
+                            <option>Mechanical Engineering</option><option>Civil Engineering</option>
+                            <option>Artificial Intelligence &amp; Data Science</option>
+                            <option>MBA</option><option>MCA</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="f-email" class="form-control" placeholder="student@college.edu">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" id="f-phone" class="form-control" placeholder="9876543210">
+                    </div>
+                </div>
+
+                <!-- Checklist -->
+                <div style="background:rgba(56,189,248,.04);border:1px solid var(--brd);border-radius:var(--rs);padding:.9rem 1rem;margin-bottom:1.1rem">
+                    <div style="font-size:.6rem;font-weight:700;letter-spacing:1.5px;color:var(--acc);margin-bottom:.5rem">REGISTRATION CHECKLIST</div>
+                    <div id="chk-name"    class="checklist-item">&#9675; Enter student name</div>
+                    <div id="chk-roll"    class="checklist-item">&#9675; Enter roll number</div>
+                    <div id="chk-dept"    class="checklist-item">&#9675; Select department</div>
+                    <div id="chk-samples" class="checklist-item">&#9675; Capture at least 3 face samples</div>
+                </div>
+
+                <button class="btn btn-s btn-full btn-lg" id="reg-btn" onclick="registerStudent()">&#10003; Register Student</button>
+                <div id="reg-result" style="margin-top:.8rem;display:none"></div>
+            </div>
+        </div>
+    </div>
+</main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+var stream=null,frames=[],autoInterval=null,isAuto=false;
+['f-name','f-roll','f-dept'].forEach(function(id){
+    document.getElementById(id).addEventListener('input',updateChk);
+});
+function updateChk(){
+    var n=document.getElementById('f-name').value.trim();
+    var r=document.getElementById('f-roll').value.trim();
+    var d=document.getElementById('f-dept').value;
+    function tick(id,ok){
+        var el=document.getElementById(id);
+        el.innerHTML=(ok?'&#10003; ':'&#9675; ')+el.textContent.substring(2);
+        el.className='checklist-item'+(ok?' done':'');
+    }
+    tick('chk-name',n.length>1);tick('chk-roll',r.length>1);
+    tick('chk-dept',d!=='');tick('chk-samples',frames.length>=3);
+}
+async function startCam(){
+    try{
+        stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
+        var v=document.getElementById('reg-video');
+        v.srcObject=stream;v.style.display='block';
+        document.getElementById('cam-ph').style.display='none';
+        document.getElementById('face-oval').style.display='block';
+        document.getElementById('scount-badge').style.display='block';
+        document.getElementById('cam-status').textContent='&#9679; LIVE';
+        document.getElementById('cam-status').style.color='var(--grn)';
+        document.getElementById('cap-btn').disabled=false;
+        document.getElementById('auto-btn').disabled=false;
+        document.getElementById('start-btn').textContent='&#9632; Stop';
+        document.getElementById('start-btn').onclick=stopCam;
+    } catch(e){showToast('Camera error: '+e.message,'error')}
+}
+function stopCam(){
+    if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
+    document.getElementById('reg-video').style.display='none';
+    document.getElementById('cam-ph').style.display='flex';
+    document.getElementById('face-oval').style.display='none';
+    document.getElementById('scount-badge').style.display='none';
+    document.getElementById('cam-status').textContent='Camera off';
+    document.getElementById('cam-status').style.color='';
+    document.getElementById('cap-btn').disabled=true;
+    document.getElementById('auto-btn').disabled=true;
+    document.getElementById('start-btn').textContent='&#9654; Start Camera';
+    document.getElementById('start-btn').onclick=startCam;
+    if(isAuto)toggleAuto();
+}
+function captureFrame(){
+    if(frames.length>=10){showToast('Max 10 samples','info');return}
+    var v=document.getElementById('reg-video');
+    var c=document.getElementById('reg-canvas');
+    c.width=v.videoWidth;c.height=v.videoHeight;
+    var ctx=c.getContext('2d');
+    ctx.save();ctx.scale(-1,1);ctx.drawImage(v,-c.width,0,c.width,c.height);ctx.restore();
+    frames.push(c.toDataURL('image/jpeg',0.85));
+    updateGrid();updateChk();
+    showToast('Sample '+frames.length+' captured','success',1200);
+    document.getElementById('debug-box').style.display='block';
+    document.getElementById('dbg-frames').textContent=frames.length;
+    document.getElementById('dbg-detect').textContent='Pending submission...';
+}
+function updateGrid(){
+    document.getElementById('cnt-display').textContent=frames.length;
+    document.getElementById('scnt').textContent=frames.length;
+    for(var i=0;i<10;i++){
+        var slot=document.getElementById('slot-'+i);
+        if(i<frames.length){
+            slot.innerHTML='<img src="'+frames[i]+'" alt="s'+(i+1)+'"><button class="remove-btn" onclick="removeSample('+i+')">&#10005;</button>';
+        } else {slot.innerHTML=i<3?'<span style="color:var(--acc);opacity:.4">+</span>':'+'}
+    }
+}
+function removeSample(i){frames.splice(i,1);updateGrid();updateChk()}
+function clearSamples(){frames=[];updateGrid();updateChk()}
+function toggleAuto(){
+    var btn=document.getElementById('auto-btn');
+    if(isAuto){clearInterval(autoInterval);isAuto=false;btn.textContent='&#9889; Auto';btn.className='btn btn-g btn-sm'}
+    else{
+        isAuto=true;btn.textContent='&#9632; Stop Auto';
+        btn.className='btn btn-d btn-sm';
+        autoInterval=setInterval(function(){if(frames.length>=10){toggleAuto();return}captureFrame()},800);
+    }
+}
+async function registerStudent(){
+    var name=document.getElementById('f-name').value.trim();
+    var roll=document.getElementById('f-roll').value.trim();
+    var dept=document.getElementById('f-dept').value;
+    var email=document.getElementById('f-email').value.trim();
+    var phone=document.getElementById('f-phone').value.trim();
+    if(!name||!roll||!dept){showToast('Fill in all required fields','error');return}
+    if(frames.length<3){showToast('Capture at least 3 face samples','error');return}
+    var btn=document.getElementById('reg-btn');
+    btn.textContent='&#9661; PROCESSING...';btn.disabled=true;
+    try{
+        var res=await fetch('/api/students/register',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({name:name,roll_number:roll,department:dept,email:email,phone:phone,frames:frames})});
+        var data=await res.json();
+        var result=document.getElementById('reg-result');result.style.display='block';
+        if(data.success){
+            result.className='alert al-ok';result.innerHTML='&#10003; '+data.message+(data.student?'':' — <strong style="color:var(--yel)">Note: face data was not stored</strong>');
+            showToast(data.message,'success',4000);
+            setTimeout(function(){window.location.href='/admin/students'},1800);
+        } else {
+            var tips='';
+            if(data.message&&data.message.toLowerCase().includes('face')){
+                tips='<div style="margin-top:.5rem;font-size:.72rem;color:var(--txt3);line-height:1.7">'+
+                     '&#9888; <strong>Tips to fix:</strong><br>'+
+                     '&#8226; Ensure your face is clearly visible and centred in the oval<br>'+
+                     '&#8226; Use good lighting — avoid backlight or dark rooms<br>'+
+                     '&#8226; Remove glasses or masks if possible<br>'+
+                     '&#8226; Capture more samples (8–10 recommended)<br>'+
+                     '&#8226; Try clicking "Clear" and recapturing</div>';
+            }
+            result.className='alert al-er';result.innerHTML='&#10005; '+data.message+tips;
+            btn.textContent='&#10003; Register Student';btn.disabled=false;
+        }
+    } catch(e){showToast('Network error: '+e.message,'error');btn.textContent='&#10003; Register Student';btn.disabled=false}
+}
+</script>
+{% endblock %}

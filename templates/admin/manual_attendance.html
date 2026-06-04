@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Manual Attendance — FaceAttend Pro{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+<aside class="sidebar">
+    <div class="sb-section" style="padding:0 1rem .8rem;border-bottom:1px solid var(--brd);margin-bottom:.8rem">
+        <div style="font-size:.65rem;font-weight:700;color:var(--acc);letter-spacing:1.5px">FACEATTEND PRO</div>
+    </div>
+    <div class="sb-section">
+        <span class="sb-label">Navigation</span>
+        <a href="/admin/dashboard"         class="sb-link"><span class="sb-icon">&#128202;</span>Dashboard</a>
+        <a href="/admin/students"          class="sb-link"><span class="sb-icon">&#128101;</span>Students</a>
+        <a href="/admin/students/add"      class="sb-link"><span class="sb-icon">&#10133;</span>Add Student</a>
+        <a href="/admin/attendance"        class="sb-link"><span class="sb-icon">&#128203;</span>Attendance</a>
+        <a href="/admin/attendance/manual" class="sb-link active"><span class="sb-icon">&#9997;</span>Manual Mark</a>
+        <a href="/admin/mail-parents" class="sb-link"><span class="sb-icon">&#128140;</span>Mail Parents</a>
+    </div>
+    <div class="sb-section">
+        <a href="/admin/attendance/export" class="sb-link"><span class="sb-icon">&#128229;</span>Export CSV</a>
+        <a href="/admin/database/export"   class="sb-link"><span class="sb-icon">&#128190;</span>Full DB Export</a>
+    </div>
+    <div class="sb-section">
+        <a href="/"             class="sb-link"><span class="sb-icon">&#127968;</span>Student Portal</a>
+        <a href="/admin/logout" class="sb-link" style="color:var(--red)"><span class="sb-icon">&#9211;</span>Logout</a>
+    </div>
+</aside>
+
+<main class="admin-main">
+    <div class="ph">
+        <div>
+            <div class="ph-title">Manual Attendance</div>
+            <div class="ph-sub">Mark attendance for special cases — logged as admin override</div>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.3rem;max-width:900px">
+        <!-- Mark form -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">&#9997; Mark Attendance</span></div>
+            <div class="card-body">
+                <div class="alert al-wa mb">
+                    &#9888; Manual entries are logged with your admin username and marked as 'Manual' in reports.
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Select Student <span class="req">*</span></label>
+                    <select id="m-student" class="form-control">
+                        <option value="">-- Select Student --</option>
+                        {% for s in students %}
+                        <option value="{{ s.id }}">{{ s.name }} ({{ s.roll_number }}) — {{ s.department }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Reason <span class="req">*</span></label>
+                    <select id="m-reason" class="form-control">
+                        <option value="Official College Duty">Official College Duty</option>
+                        <option value="Sports Event">Sports Event</option>
+                        <option value="Cultural Event">Cultural Event</option>
+                        <option value="Medical (Doctor's Certificate)">Medical (Doctor's Certificate)</option>
+                        <option value="Exam / Placement Drive">Exam / Placement Drive</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group" id="custom-reason-group" style="display:none">
+                    <label class="form-label">Custom Reason</label>
+                    <input type="text" id="m-custom" class="form-control" placeholder="Describe the reason...">
+                </div>
+
+                <button class="btn btn-p btn-full" onclick="submitManual()">&#9997; Mark Attendance</button>
+                <div id="m-result" style="margin-top:.8rem;display:none"></div>
+            </div>
+        </div>
+
+        <!-- Today's manual records -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">&#128336; Today's Manual Records</span></div>
+            <div class="table-wrap">
+                <table class="data-table" id="manual-table">
+                    <thead><tr><th>Name</th><th>Roll</th><th>Time</th><th>Reason</th></tr></thead>
+                    <tbody id="manual-tbody">
+                        <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--txt3)">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('m-reason').addEventListener('change',function(){
+    document.getElementById('custom-reason-group').style.display=this.value==='Other'?'block':'none';
+});
+async function submitManual(){
+    var sid=document.getElementById('m-student').value;
+    var reason=document.getElementById('m-reason').value;
+    if(reason==='Other')reason=document.getElementById('m-custom').value.trim()||'Other';
+    if(!sid){showToast('Please select a student','error');return}
+    try{
+        var res=await fetch('/admin/attendance/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({student_id:sid,reason:reason})});
+        var data=await res.json();
+        var el=document.getElementById('m-result');el.style.display='block';
+        if(data.success){
+            el.className='alert al-ok';el.innerHTML='&#10003; '+data.message;
+            showToast('Attendance marked','success');loadManual();
+        } else {
+            el.className='alert al-wa';el.innerHTML='&#9888; '+data.message;
+        }
+    } catch(e){showToast('Error: '+e.message,'error')}
+}
+async function loadManual(){
+    var today=new Date().toISOString().split('T')[0];
+    try{
+        var res=await fetch('/api/attendance?date_from='+today+'&date_to='+today);
+        var data=await res.json();
+        var manual=data.records.filter(function(r){return r.status==='Manual'});
+        var tbody=document.getElementById('manual-tbody');
+        if(!manual.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:1.5rem;color:var(--txt3)">No manual records today</td></tr>';return}
+        tbody.innerHTML=manual.map(function(r){
+            return '<tr><td><strong class="text-sm">'+r.student_name+'</strong></td>'+
+                '<td class="mono text-xs text-dim">'+r.roll_number+'</td>'+
+                '<td class="mono text-xs text-acc">'+r.time+'</td>'+
+                '<td class="text-xs text-dim">'+(r.reason||'&#8212;')+'</td></tr>';
+        }).join('');
+    } catch(e){console.error(e)}
+}
+loadManual();
+</script>
+{% endblock %}
